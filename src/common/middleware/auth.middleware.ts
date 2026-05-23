@@ -19,7 +19,8 @@ const authMiddleware = (req: Request, _res: Response, next: NextFunction) => {
         };
 
         next();
-    } catch {
+    } catch (e) {
+        console.error('Token verification failed:', e);
         return next(new ApiError(401, 'Invalid token'));
     }
 };
