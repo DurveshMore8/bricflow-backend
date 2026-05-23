@@ -15,7 +15,6 @@ class TokenHelper {
     }
 
     verifyAccessToken(token: string) {
-        console.log('Verifying access token:', token);
         return jwt.verify(token, ENV.JWT_SECRET!);
     }
 
