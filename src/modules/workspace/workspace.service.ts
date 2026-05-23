@@ -1,4 +1,5 @@
 import ApiError from '../../common/errors/ApiError';
+import roleHelper from '../../common/helpers/role.helper';
 import workspaceRepository from './workspace.repository';
 import {
     CreateWorkspaceInput,
@@ -79,8 +80,8 @@ class WorkspaceService {
             throw new ApiError(403, 'Access denied');
         }
 
-        if (currentUser.role !== 'OWNER') {
-            throw new ApiError(403, 'Only owner can change roles');
+        if (currentUser.role === 'DEVELOPER' || currentUser.role === 'VIEWER') {
+            throw new ApiError(403, 'Insufficient permissions');
         }
 
         if (currentUserId === targetUserId) {
@@ -96,17 +97,20 @@ class WorkspaceService {
             throw new ApiError(404, 'Member not found');
         }
 
-        if (targetMember.role === 'OWNER') {
-            throw new ApiError(400, 'Owner role cannot be modified');
+        const canManage = roleHelper.canManageRole(
+            currentUser.role,
+            targetMember.role
+        );
+
+        if (!canManage) {
+            throw new ApiError(403, 'Cannot modify this member');
         }
 
-        const updatedMember = await workspaceRepository.updateMemberRole(
+        return workspaceRepository.updateMemberRole(
             workspaceId,
             targetUserId,
             role
         );
-
-        return updatedMember;
     }
 
     async removeMember(
@@ -123,12 +127,12 @@ class WorkspaceService {
             throw new ApiError(403, 'Access denied');
         }
 
-        if (currentUser.role !== 'OWNER') {
-            throw new ApiError(403, 'Only owner can remove members');
+        if (currentUser.role === 'DEVELOPER' || currentUser.role === 'VIEWER') {
+            throw new ApiError(403, 'Insufficient permissions');
         }
 
         if (currentUserId === targetUserId) {
-            throw new ApiError(400, 'Owner cannot remove self');
+            throw new ApiError(400, 'Cannot remove yourself');
         }
 
         const targetMember = await workspaceRepository.findWorkspaceMember(
@@ -138,6 +142,15 @@ class WorkspaceService {
 
         if (!targetMember) {
             throw new ApiError(404, 'Member not found');
+        }
+
+        const canManage = roleHelper.canManageRole(
+            currentUser.role,
+            targetMember.role
+        );
+
+        if (!canManage) {
+            throw new ApiError(403, 'Cannot remove this member');
         }
 
         return workspaceRepository.removeMember(workspaceId, targetUserId);
