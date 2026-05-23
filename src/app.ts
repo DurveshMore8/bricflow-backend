@@ -13,8 +13,9 @@ app.use(cors());
 app.use(helmet());
 app.use(compression());
 app.use(requestLogger);
-app.use(errorMiddleware);
 
 app.use('/api/v1', v1Routes);
+
+app.use(errorMiddleware);
 
 export default app;

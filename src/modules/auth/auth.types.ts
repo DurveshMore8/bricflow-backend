@@ -8,3 +8,7 @@ export type LoginUserInput = {
     email: string;
     password: string;
 };
+
+export type RefreshTokenInput = {
+    refreshToken: string;
+};

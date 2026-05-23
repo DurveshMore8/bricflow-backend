@@ -10,3 +10,7 @@ export const loginSchema = z.object({
     email: z.email(),
     password: z.string()
 });
+
+export const refreshSchema = z.object({
+    refreshToken: z.string()
+});
