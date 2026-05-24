@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import User from '../../database/models/User.model';
 import Workspace from '../../database/models/Workspace.model';
 import WorkspaceMember from '../../database/models/WorkspaceMember.model';
@@ -5,46 +6,63 @@ import {
     CreateWorkspaceMemberInput,
     CreateWorkspaceRepositoryInput
 } from './workspace.interface';
+import { WorkspaceRole } from './workspace.types';
 
 class WorkspaceRepository {
-    async createWorkspace(data: CreateWorkspaceRepositoryInput) {
-        return Workspace.create(data);
+    async createWorkspace(
+        data: CreateWorkspaceRepositoryInput,
+        session?: mongoose.ClientSession
+    ) {
+        return Workspace.create([data], { session }).then((docs) => docs[0]);
     }
 
-    async createMember(data: CreateWorkspaceMemberInput) {
-        return WorkspaceMember.create(data);
+    async createMember(
+        data: CreateWorkspaceMemberInput,
+        session?: mongoose.ClientSession
+    ) {
+        return WorkspaceMember.create([data], { session }).then(
+            (docs) => docs[0]
+        );
     }
 
     async getUserWorkspaces(userId: string) {
         return WorkspaceMember.find({
             userId
-        }).populate('workspaceId');
+        })
+            .populate('workspaceId')
+            .lean();
     }
 
     async findWorkspaceById(workspaceId: string) {
-        return Workspace.findById(workspaceId);
+        return Workspace.findById(workspaceId).lean();
     }
 
     async findUserByEmail(email: string) {
         return User.findOne({
             email
-        });
+        }).lean();
     }
 
     async getWorkspaceMembers(workspaceId: string) {
         return WorkspaceMember.find({
             workspaceId
-        }).populate('userId', 'name email avatar');
+        })
+            .populate('userId', 'name email avatar')
+            .lean();
     }
 
-    async findMember(workspaceId: string, userId: string) {
+    async findWorkspaceMember(workspaceId: string, userId: string) {
         return WorkspaceMember.findOne({
             workspaceId,
             userId
-        });
+        }).lean();
     }
 
-    async updateMemberRole(workspaceId: string, userId: string, role: string) {
+    async updateMemberRole(
+        workspaceId: string,
+        userId: string,
+        role: WorkspaceRole
+    ) {
         return WorkspaceMember.findOneAndUpdate(
             { workspaceId, userId },
             { role },
@@ -54,13 +72,6 @@ class WorkspaceRepository {
 
     async removeMember(workspaceId: string, userId: string) {
         return WorkspaceMember.findOneAndDelete({
-            workspaceId,
-            userId
-        });
-    }
-
-    async findWorkspaceMember(workspaceId: string, userId: string) {
-        return WorkspaceMember.findOne({
             workspaceId,
             userId
         });

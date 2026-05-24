@@ -14,6 +14,10 @@ class RoleHelper {
     ): boolean {
         return this.hierarchy[currentRole] > this.hierarchy[targetRole];
     }
+
+    canManageMembers(role: WorkspaceRole) {
+        return ['OWNER', 'ADMIN'].includes(role);
+    }
 }
 
 export default new RoleHelper();

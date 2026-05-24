@@ -25,7 +25,10 @@ class WorkspaceController {
         req: Request<WorkspaceParams>,
         res: Response
     ) => {
-        const data = await workspaceService.getWorkspaceDetails(req.params.id);
+        const data = await workspaceService.getWorkspaceDetails(
+            req.params.id,
+            req.user!.id
+        );
 
         return responseHelper.success(res, 'Workspace fetched', data);
     };
@@ -33,7 +36,8 @@ class WorkspaceController {
     inviteMember = async (req: Request<WorkspaceParams>, res: Response) => {
         const member = await workspaceService.inviteMember(
             req.params.id,
-            req.body
+            req.body,
+            req.user!.id
         );
 
         return responseHelper.success(res, 'Member added', member);
@@ -41,7 +45,8 @@ class WorkspaceController {
 
     getMembers = async (req: Request<WorkspaceParams>, res: Response) => {
         const members = await workspaceService.getWorkspaceMembers(
-            req.params.id
+            req.params.id,
+            req.user!.id
         );
 
         return responseHelper.success(res, 'Members fetched', members);

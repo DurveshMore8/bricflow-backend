@@ -1,5 +1,6 @@
 import ApiError from '../../common/errors/ApiError';
 import roleHelper from '../../common/helpers/role.helper';
+import { withTransaction } from '../../common/helpers/transaction.helper';
 import workspaceRepository from './workspace.repository';
 import {
     CreateWorkspaceInput,
@@ -9,25 +10,35 @@ import {
 
 class WorkspaceService {
     async createWorkspace(data: CreateWorkspaceInput, userId: string) {
-        const workspace = await workspaceRepository.createWorkspace({
-            ...data,
-            owner: userId
-        });
+        return withTransaction(async (session) => {
+            const workspace = await workspaceRepository.createWorkspace(
+                {
+                    ...data,
+                    owner: userId
+                },
+                session
+            );
 
-        await workspaceRepository.createMember({
-            workspaceId: workspace._id,
-            userId,
-            role: 'OWNER'
-        });
+            await workspaceRepository.createMember(
+                {
+                    workspaceId: workspace._id,
+                    userId,
+                    role: 'OWNER'
+                },
+                session
+            );
 
-        return workspace;
+            return workspace;
+        });
     }
 
     async getUserWorkspaces(userId: string) {
         return workspaceRepository.getUserWorkspaces(userId);
     }
 
-    async getWorkspaceDetails(workspaceId: string) {
+    async getWorkspaceDetails(workspaceId: string, userId: string) {
+        await this.validateWorkspaceAccess(workspaceId, userId);
+
         const workspace =
             await workspaceRepository.findWorkspaceById(workspaceId);
 
@@ -38,14 +49,27 @@ class WorkspaceService {
         return workspace;
     }
 
-    async inviteMember(workspaceId: string, data: InviteMemberInput) {
+    async inviteMember(
+        workspaceId: string,
+        data: InviteMemberInput,
+        currentUserId: string
+    ) {
+        const currentMember = await this.validateWorkspaceAccess(
+            workspaceId,
+            currentUserId
+        );
+
+        if (!roleHelper.canManageMembers(currentMember.role)) {
+            throw new ApiError(403, 'Insufficient permissions');
+        }
+
         const user = await workspaceRepository.findUserByEmail(data.email);
 
         if (!user) {
             throw new ApiError(404, 'User not found');
         }
 
-        const existingMember = await workspaceRepository.findMember(
+        const existingMember = await workspaceRepository.findWorkspaceMember(
             workspaceId,
             String(user._id)
         );
@@ -61,7 +85,9 @@ class WorkspaceService {
         });
     }
 
-    async getWorkspaceMembers(workspaceId: string) {
+    async getWorkspaceMembers(workspaceId: string, userId: string) {
+        await this.validateWorkspaceAccess(workspaceId, userId);
+
         return workspaceRepository.getWorkspaceMembers(workspaceId);
     }
 
@@ -80,7 +106,7 @@ class WorkspaceService {
             throw new ApiError(403, 'Access denied');
         }
 
-        if (currentUser.role === 'DEVELOPER' || currentUser.role === 'VIEWER') {
+        if (!roleHelper.canManageMembers(currentUser.role)) {
             throw new ApiError(403, 'Insufficient permissions');
         }
 
@@ -127,7 +153,7 @@ class WorkspaceService {
             throw new ApiError(403, 'Access denied');
         }
 
-        if (currentUser.role === 'DEVELOPER' || currentUser.role === 'VIEWER') {
+        if (!roleHelper.canManageMembers(currentUser.role)) {
             throw new ApiError(403, 'Insufficient permissions');
         }
 
@@ -154,6 +180,19 @@ class WorkspaceService {
         }
 
         return workspaceRepository.removeMember(workspaceId, targetUserId);
+    }
+
+    private async validateWorkspaceAccess(workspaceId: string, userId: string) {
+        const member = await workspaceRepository.findWorkspaceMember(
+            workspaceId,
+            userId
+        );
+
+        if (!member) {
+            throw new ApiError(403, 'Access denied');
+        }
+
+        return member;
     }
 }
 
