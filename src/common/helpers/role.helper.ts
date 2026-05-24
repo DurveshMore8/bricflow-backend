@@ -18,6 +18,10 @@ class RoleHelper {
     canManageMembers(role: WorkspaceRole) {
         return ['OWNER', 'ADMIN'].includes(role);
     }
+
+    canManageCollections(role: WorkspaceRole) {
+        return ['OWNER', 'ADMIN', 'DEVELOPER'].includes(role);
+    }
 }
 
 export default new RoleHelper();
