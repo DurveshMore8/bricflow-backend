@@ -46,6 +46,33 @@ class CollectionController {
 
         return responseHelper.success(res, 'Collection fetched', collection);
     };
+
+    updateCollection = async (
+        req: Request<CollectionParams>,
+        res: Response
+    ) => {
+        const collection = await collectionService.updateCollection(
+            req.params.workspaceId,
+            req.params.collectionId,
+            req.user!.id,
+            req.body
+        );
+
+        return responseHelper.success(res, 'Collection updated', collection);
+    };
+
+    deleteCollection = async (
+        req: Request<CollectionParams>,
+        res: Response
+    ) => {
+        const collection = await collectionService.deleteCollection(
+            req.params.workspaceId,
+            req.params.collectionId,
+            req.user!.id
+        );
+
+        return responseHelper.success(res, 'Collection deleted', collection);
+    };
 }
 
 export default new CollectionController();

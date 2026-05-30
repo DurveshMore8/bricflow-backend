@@ -7,3 +7,8 @@ export type CreateCollectionInput = {
     name: string;
     description?: string;
 };
+
+export type UpdateCollectionInput = {
+    name?: string;
+    description?: string;
+};

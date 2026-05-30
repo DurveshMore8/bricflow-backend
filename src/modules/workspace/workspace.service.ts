@@ -10,6 +10,15 @@ import {
 
 class WorkspaceService {
     async createWorkspace(data: CreateWorkspaceInput, userId: string) {
+        const workspace = await workspaceRepository.findWorkspaceByName(
+            data.name,
+            userId
+        );
+
+        if (workspace) {
+            throw new ApiError(409, 'Workspace with same name already exists');
+        }
+
         return withTransaction(async (session) => {
             const workspace = await workspaceRepository.createWorkspace(
                 {

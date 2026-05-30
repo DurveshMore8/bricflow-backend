@@ -21,4 +21,16 @@ router.get(
     collectionController.getCollectionDetails
 );
 
+router.patch(
+    '/:collectionId',
+    authMiddleware,
+    collectionController.updateCollection
+);
+
+router.delete(
+    '/:collectionId',
+    authMiddleware,
+    collectionController.deleteCollection
+);
+
 export default router;

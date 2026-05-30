@@ -37,6 +37,10 @@ class WorkspaceRepository {
         return Workspace.findById(workspaceId).lean();
     }
 
+    async findWorkspaceByName(name: string, owner: string) {
+        return Workspace.findOne({ name, owner }).lean();
+    }
+
     async findUserByEmail(email: string) {
         return User.findOne({
             email
