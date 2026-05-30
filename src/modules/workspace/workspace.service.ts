@@ -1,6 +1,6 @@
 import ApiError from '../../common/errors/ApiError';
-import roleHelper from '../../common/helpers/role.helper';
 import { withTransaction } from '../../common/helpers/transaction.helper';
+import workspaceAccessService from '../../common/services/workspace-access.service';
 import workspaceRepository from './workspace.repository';
 import {
     CreateWorkspaceInput,
@@ -46,14 +46,11 @@ class WorkspaceService {
     }
 
     async getWorkspaceDetails(workspaceId: string, userId: string) {
-        await this.validateWorkspaceAccess(workspaceId, userId);
-
-        const workspace =
-            await workspaceRepository.findWorkspaceById(workspaceId);
-
-        if (!workspace) {
-            throw new ApiError(404, 'Workspace not found');
-        }
+        const { workspace } =
+            await workspaceAccessService.validateWorkspaceMember(
+                workspaceId,
+                userId
+            );
 
         return workspace;
     }
@@ -63,14 +60,11 @@ class WorkspaceService {
         data: InviteMemberInput,
         currentUserId: string
     ) {
-        const currentMember = await this.validateWorkspaceAccess(
+        await workspaceAccessService.validateWorkspaceMemberAccess(
             workspaceId,
-            currentUserId
+            currentUserId,
+            'MEMBER_INVITE'
         );
-
-        if (!roleHelper.canManageMembers(currentMember.role)) {
-            throw new ApiError(403, 'Insufficient permissions');
-        }
 
         const user = await workspaceRepository.findUserByEmail(data.email);
 
@@ -95,7 +89,10 @@ class WorkspaceService {
     }
 
     async getWorkspaceMembers(workspaceId: string, userId: string) {
-        await this.validateWorkspaceAccess(workspaceId, userId);
+        await workspaceAccessService.validateWorkspaceMember(
+            workspaceId,
+            userId
+        );
 
         return workspaceRepository.getWorkspaceMembers(workspaceId);
     }
@@ -106,40 +103,29 @@ class WorkspaceService {
         role: WorkspaceRole,
         currentUserId: string
     ) {
-        const currentUser = await workspaceRepository.findWorkspaceMember(
-            workspaceId,
-            currentUserId
-        );
-
-        if (!currentUser) {
-            throw new ApiError(403, 'Access denied');
-        }
-
-        if (!roleHelper.canManageMembers(currentUser.role)) {
-            throw new ApiError(403, 'Insufficient permissions');
-        }
-
         if (currentUserId === targetUserId) {
             throw new ApiError(400, 'Cannot change your own role');
         }
 
-        const targetMember = await workspaceRepository.findWorkspaceMember(
-            workspaceId,
-            targetUserId
-        );
+        const currentMember = (
+            await workspaceAccessService.validateWorkspaceMemberAccess(
+                workspaceId,
+                currentUserId,
+                'MEMBER_UPDATE'
+            )
+        ).member;
 
-        if (!targetMember) {
-            throw new ApiError(404, 'Member not found');
-        }
+        const targetMember = (
+            await workspaceAccessService.validateWorkspaceMember(
+                workspaceId,
+                targetUserId
+            )
+        ).member;
 
-        const canManage = roleHelper.canManageRole(
-            currentUser.role,
+        workspaceAccessService.validateRoleHierarchy(
+            currentMember.role,
             targetMember.role
         );
-
-        if (!canManage) {
-            throw new ApiError(403, 'Cannot modify this member');
-        }
 
         return workspaceRepository.updateMemberRole(
             workspaceId,
@@ -153,55 +139,31 @@ class WorkspaceService {
         targetUserId: string,
         currentUserId: string
     ) {
-        const currentUser = await workspaceRepository.findWorkspaceMember(
-            workspaceId,
-            currentUserId
-        );
-
-        if (!currentUser) {
-            throw new ApiError(403, 'Access denied');
-        }
-
-        if (!roleHelper.canManageMembers(currentUser.role)) {
-            throw new ApiError(403, 'Insufficient permissions');
-        }
-
         if (currentUserId === targetUserId) {
             throw new ApiError(400, 'Cannot remove yourself');
         }
 
-        const targetMember = await workspaceRepository.findWorkspaceMember(
-            workspaceId,
-            targetUserId
-        );
+        const currentMember = (
+            await workspaceAccessService.validateWorkspaceMemberAccess(
+                workspaceId,
+                currentUserId,
+                'MEMBER_UPDATE'
+            )
+        ).member;
 
-        if (!targetMember) {
-            throw new ApiError(404, 'Member not found');
-        }
+        const targetMember = (
+            await workspaceAccessService.validateWorkspaceMember(
+                workspaceId,
+                targetUserId
+            )
+        ).member;
 
-        const canManage = roleHelper.canManageRole(
-            currentUser.role,
+        workspaceAccessService.validateRoleHierarchy(
+            currentMember.role,
             targetMember.role
         );
 
-        if (!canManage) {
-            throw new ApiError(403, 'Cannot remove this member');
-        }
-
         return workspaceRepository.removeMember(workspaceId, targetUserId);
-    }
-
-    private async validateWorkspaceAccess(workspaceId: string, userId: string) {
-        const member = await workspaceRepository.findWorkspaceMember(
-            workspaceId,
-            userId
-        );
-
-        if (!member) {
-            throw new ApiError(403, 'Access denied');
-        }
-
-        return member;
     }
 }
 
